@@ -7,7 +7,7 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import IS_DEBUG_ENABLED
-from routes import screenshot, generate_code, home, evals
+from routes import screenshot, generate_code, generate_code_api, home, evals
 
 app = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
 
@@ -16,6 +16,7 @@ app = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
 async def log_debug_mode() -> None:
     debug_status = "ENABLED" if IS_DEBUG_ENABLED else "DISABLED"
     print(f"Backend startup complete. Debug mode is {debug_status}.")
+
 
 # Configure CORS settings
 app.add_middleware(
@@ -28,6 +29,7 @@ app.add_middleware(
 
 # Add routes
 app.include_router(generate_code.router)
+app.include_router(generate_code_api.router)
 app.include_router(screenshot.router)
 app.include_router(home.router)
 app.include_router(evals.router)

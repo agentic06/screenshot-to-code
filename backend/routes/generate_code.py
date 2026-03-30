@@ -459,26 +459,18 @@ class AgenticGenerationStage:
             )
             return completion
         except openai.AuthenticationError as e:
-            print(f"[VARIANT {index + 1}] OpenAI Authentication failed", e)
-            error_message = (
-                "Incorrect OpenAI key. Please make sure your OpenAI API key is correct, "
-                "or create a new OpenAI API key on your OpenAI dashboard."
-            )
+            print(f"[VARIANT {index + 1}] Authentication failed", e)
+            error_message = f"Authentication error: {e.message}. Please check your LLM_API_KEY in backend/.env."
             await self.send_message("variantError", error_message, index, None, None)
             return ""
         except openai.NotFoundError as e:
-            print(f"[VARIANT {index + 1}] OpenAI Model not found", e)
-            error_message = (
-                e.message
-                + ". Please make sure you have followed the instructions correctly to obtain "
-                "an OpenAI key with GPT vision access: "
-                "https://github.com/abi/screenshot-to-code/blob/main/Troubleshooting.md"
-            )
+            print(f"[VARIANT {index + 1}] Model not found", e)
+            error_message = f"Model not found: {e.message}. Please check LLM_MODEL_NAME in backend/.env."
             await self.send_message("variantError", error_message, index, None, None)
             return ""
         except openai.RateLimitError as e:
-            print(f"[VARIANT {index + 1}] OpenAI Rate limit exceeded", e)
-            error_message = "OpenAI error - 'You exceeded your current quota, please check your plan and billing details.'"
+            print(f"[VARIANT {index + 1}] Rate limit exceeded", e)
+            error_message = f"Rate limit exceeded: {e.message}"
             await self.send_message("variantError", error_message, index, None, None)
             return ""
         except Exception as e:
