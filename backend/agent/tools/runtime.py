@@ -4,7 +4,7 @@ import difflib
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from codegen.utils import extract_html_content
-from config import REPLICATE_API_KEY
+from config import LLM_API_KEY, LLM_BASE_URL, REPLICATE_API_KEY
 from image_generation.generation import process_tasks
 from image_generation.replicate import remove_background
 
@@ -18,14 +18,14 @@ class AgentToolRuntime:
         self,
         file_state: AgentFileState,
         should_generate_images: bool,
-        openai_api_key: Optional[str],
-        openai_base_url: Optional[str],
+        openai_api_key: Optional[str] = None,
+        openai_base_url: Optional[str] = None,
         option_codes: Optional[List[str]] = None,
     ):
         self.file_state = file_state
         self.should_generate_images = should_generate_images
-        self.openai_api_key = openai_api_key
-        self.openai_base_url = openai_base_url
+        self.openai_api_key = openai_api_key or LLM_API_KEY
+        self.openai_base_url = openai_base_url or LLM_BASE_URL
         self.option_codes = option_codes or []
 
     async def execute(self, tool_call: ToolCall) -> ToolExecutionResult:
@@ -171,7 +171,9 @@ class AgentToolRuntime:
                     summary={"error": "Missing old_text"},
                 )
 
-            content, replaced = self._apply_single_edit(content, old_text, new_text, count)
+            content, replaced = self._apply_single_edit(
+                content, old_text, new_text, count
+            )
             if replaced == 0:
                 return ToolExecutionResult(
                     ok=False,
@@ -254,9 +256,7 @@ class AgentToolRuntime:
             base_url = self.openai_base_url
 
         generated = await process_tasks(unique_prompts, api_key, base_url, model)  # type: ignore
-        merged_results = {
-            prompt: url for prompt, url in zip(unique_prompts, generated)
-        }
+        merged_results = {prompt: url for prompt, url in zip(unique_prompts, generated)}
         summary_items = [
             {
                 "prompt": prompt,
@@ -311,9 +311,7 @@ class AgentToolRuntime:
                     {"image_url": url, "result_url": None, "status": "error"}
                 )
             else:
-                results.append(
-                    {"image_url": url, "result_url": raw, "status": "ok"}
-                )
+                results.append({"image_url": url, "result_url": raw, "status": "ok"})
 
         summary_items = [
             {

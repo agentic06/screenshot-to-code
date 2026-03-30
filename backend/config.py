@@ -3,11 +3,10 @@ import os
 NUM_VARIANTS = 4
 NUM_VARIANTS_VIDEO = 2
 
-# LLM-related
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", None)
-OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", None)
+# LLM-related - 后端配置的模型
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL", None)
+LLM_API_KEY = os.environ.get("LLM_API_KEY", None)
+LLM_MODEL_NAME = os.environ.get("LLM_MODEL_NAME", "gpt-4.1-2025-04-14")
 
 # Image generation (optional)
 REPLICATE_API_KEY = os.environ.get("REPLICATE_API_KEY", None)

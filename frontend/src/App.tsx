@@ -3,7 +3,6 @@ import { generateCode } from "./generateCode";
 import { AppState, AppTheme, EditorTheme, Settings } from "./types";
 import { IS_RUNNING_ON_CLOUD } from "./config";
 import { PicoBadge } from "./components/messages/PicoBadge";
-import { OnboardingNote } from "./components/messages/OnboardingNote";
 import { usePersistedState } from "./hooks/usePersistedState";
 import TermsOfServiceDialog from "./components/TermsOfServiceDialog";
 import { USER_CLOSE_WEB_SOCKET_CODE } from "./constants";
@@ -82,10 +81,6 @@ function App() {
   // Settings
   const [settings, setSettings] = usePersistedState<Settings>(
     {
-      openAiApiKey: null,
-      openAiBaseURL: null,
-      anthropicApiKey: null,
-      geminiApiKey: null,
       screenshotOneApiKey: null,
       isImageGenerationEnabled: true,
       editorTheme: EditorTheme.COBALT,
@@ -751,12 +746,6 @@ function App() {
               </div>
             ) : (
               <>
-                {IS_RUNNING_ON_CLOUD && !settings.openAiApiKey && (
-                  <div className="px-6 mt-4">
-                    <OnboardingNote />
-                  </div>
-                )}
-
                 {(appState === AppState.CODING ||
                   appState === AppState.CODE_READY) && (
                   <Sidebar

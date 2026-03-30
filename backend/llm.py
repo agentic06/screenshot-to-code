@@ -2,9 +2,19 @@ from enum import Enum
 from typing import TypedDict
 
 
-# Actual model versions that are passed to the LLMs and stored in our logs
 class Llm(Enum):
-    # GPT
+    CUSTOM = "custom"
+
+    def __str__(self):
+        return self.value
+
+    @classmethod
+    def from_string(cls, model_name: str) -> "Llm":
+        for llm in cls:
+            if llm.value == model_name:
+                return llm
+        return cls.CUSTOM
+
     GPT_4_1_2025_04_14 = "gpt-4.1-2025-04-14"
     GPT_5_2_CODEX_LOW = "gpt-5.2-codex (low thinking)"
     GPT_5_2_CODEX_MEDIUM = "gpt-5.2-codex (medium thinking)"
@@ -19,12 +29,10 @@ class Llm(Enum):
     GPT_5_4_2026_03_05_MEDIUM = "gpt-5.4-2026-03-05 (medium thinking)"
     GPT_5_4_2026_03_05_HIGH = "gpt-5.4-2026-03-05 (high thinking)"
     GPT_5_4_2026_03_05_XHIGH = "gpt-5.4-2026-03-05 (xhigh thinking)"
-    # Claude
     CLAUDE_SONNET_4_6 = "claude-sonnet-4-6"
     CLAUDE_4_5_SONNET_2025_09_29 = "claude-sonnet-4-5-20250929"
     CLAUDE_4_5_OPUS_2025_11_01 = "claude-opus-4-5-20251101"
     CLAUDE_OPUS_4_6 = "claude-opus-4-6"
-    # Gemini
     GEMINI_3_FLASH_PREVIEW_HIGH = "gemini-3-flash-preview (high thinking)"
     GEMINI_3_FLASH_PREVIEW_MINIMAL = "gemini-3-flash-preview (minimal thinking)"
     GEMINI_3_1_PRO_PREVIEW_HIGH = "gemini-3.1-pro-preview (high thinking)"
@@ -37,11 +45,7 @@ class Completion(TypedDict):
     code: str
 
 
-# Explicitly map each model to the provider backing it.  This keeps provider
-# groupings authoritative and avoids relying on name conventions when checking
-# models elsewhere in the codebase.
 MODEL_PROVIDER: dict[Llm, str] = {
-    # OpenAI models
     Llm.GPT_4_1_2025_04_14: "openai",
     Llm.GPT_5_2_CODEX_LOW: "openai",
     Llm.GPT_5_2_CODEX_MEDIUM: "openai",
@@ -56,20 +60,18 @@ MODEL_PROVIDER: dict[Llm, str] = {
     Llm.GPT_5_4_2026_03_05_MEDIUM: "openai",
     Llm.GPT_5_4_2026_03_05_HIGH: "openai",
     Llm.GPT_5_4_2026_03_05_XHIGH: "openai",
-    # Anthropic models
     Llm.CLAUDE_SONNET_4_6: "anthropic",
     Llm.CLAUDE_4_5_SONNET_2025_09_29: "anthropic",
     Llm.CLAUDE_4_5_OPUS_2025_11_01: "anthropic",
     Llm.CLAUDE_OPUS_4_6: "anthropic",
-    # Gemini models
     Llm.GEMINI_3_FLASH_PREVIEW_HIGH: "gemini",
     Llm.GEMINI_3_FLASH_PREVIEW_MINIMAL: "gemini",
     Llm.GEMINI_3_1_PRO_PREVIEW_HIGH: "gemini",
     Llm.GEMINI_3_1_PRO_PREVIEW_MEDIUM: "gemini",
     Llm.GEMINI_3_1_PRO_PREVIEW_LOW: "gemini",
+    Llm.CUSTOM: "openai",
 }
 
-# Convenience sets for membership checks
 OPENAI_MODELS = {m for m, p in MODEL_PROVIDER.items() if p == "openai"}
 ANTHROPIC_MODELS = {m for m, p in MODEL_PROVIDER.items() if p == "anthropic"}
 GEMINI_MODELS = {m for m, p in MODEL_PROVIDER.items() if p == "gemini"}
@@ -77,11 +79,17 @@ GEMINI_MODELS = {m for m, p in MODEL_PROVIDER.items() if p == "gemini"}
 OPENAI_MODEL_CONFIG: dict[Llm, dict[str, str]] = {
     Llm.GPT_4_1_2025_04_14: {"api_name": "gpt-4.1-2025-04-14"},
     Llm.GPT_5_2_CODEX_LOW: {"api_name": "gpt-5.2-codex", "reasoning_effort": "low"},
-    Llm.GPT_5_2_CODEX_MEDIUM: {"api_name": "gpt-5.2-codex", "reasoning_effort": "medium"},
+    Llm.GPT_5_2_CODEX_MEDIUM: {
+        "api_name": "gpt-5.2-codex",
+        "reasoning_effort": "medium",
+    },
     Llm.GPT_5_2_CODEX_HIGH: {"api_name": "gpt-5.2-codex", "reasoning_effort": "high"},
     Llm.GPT_5_2_CODEX_XHIGH: {"api_name": "gpt-5.2-codex", "reasoning_effort": "xhigh"},
     Llm.GPT_5_3_CODEX_LOW: {"api_name": "gpt-5.3-codex", "reasoning_effort": "low"},
-    Llm.GPT_5_3_CODEX_MEDIUM: {"api_name": "gpt-5.3-codex", "reasoning_effort": "medium"},
+    Llm.GPT_5_3_CODEX_MEDIUM: {
+        "api_name": "gpt-5.3-codex",
+        "reasoning_effort": "medium",
+    },
     Llm.GPT_5_3_CODEX_HIGH: {"api_name": "gpt-5.3-codex", "reasoning_effort": "high"},
     Llm.GPT_5_3_CODEX_XHIGH: {"api_name": "gpt-5.3-codex", "reasoning_effort": "xhigh"},
     Llm.GPT_5_4_2026_03_05_NONE: {
@@ -108,7 +116,11 @@ OPENAI_MODEL_CONFIG: dict[Llm, dict[str, str]] = {
 
 
 def get_openai_api_name(model: Llm) -> str:
-    return OPENAI_MODEL_CONFIG[model]["api_name"]
+    if model == Llm.CUSTOM:
+        from config import LLM_MODEL_NAME
+
+        return LLM_MODEL_NAME
+    return OPENAI_MODEL_CONFIG.get(model, {}).get("api_name", model.value)
 
 
 def get_openai_reasoning_effort(model: Llm) -> str | None:

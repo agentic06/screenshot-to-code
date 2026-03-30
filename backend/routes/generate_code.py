@@ -7,14 +7,9 @@ from fastapi import APIRouter, WebSocket
 import openai
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 from config import (
-    ANTHROPIC_API_KEY,
-    GEMINI_API_KEY,
     IS_DEBUG_ENABLED,
-    IS_PROD,
     NUM_VARIANTS,
     NUM_VARIANTS_VIDEO,
-    OPENAI_API_KEY,
-    OPENAI_BASE_URL,
     REPLICATE_API_KEY,
 )
 from custom_types import InputMode
@@ -54,18 +49,6 @@ from prompts.pipeline import build_prompt_messages
 from prompts.request_parsing import parse_prompt_content, parse_prompt_history
 from prompts.prompt_types import PromptHistoryMessage, Stack, UserTurnInput
 from agent.runner import Agent
-from routes.model_choice_sets import (
-    ALL_KEYS_MODELS_DEFAULT,
-    ALL_KEYS_MODELS_TEXT_CREATE,
-    ALL_KEYS_MODELS_UPDATE,
-    ANTHROPIC_ONLY_MODELS,
-    GEMINI_ANTHROPIC_MODELS,
-    GEMINI_OPENAI_MODELS,
-    GEMINI_ONLY_MODELS,
-    OPENAI_ANTHROPIC_MODELS,
-    OPENAI_ONLY_MODELS,
-    VIDEO_VARIANT_MODELS,
-)
 
 # from utils import pprint_prompt
 from ws.constants import APP_ERROR_WEB_SOCKET_CODE  # type: ignore
@@ -227,10 +210,6 @@ class ExtractedParams:
     stack: Stack
     input_mode: InputMode
     should_generate_images: bool
-    openai_api_key: str | None
-    anthropic_api_key: str | None
-    gemini_api_key: str | None
-    openai_base_url: str | None
     generation_type: Literal["create", "update"]
     prompt: UserTurnInput
     history: List[PromptHistoryMessage]
@@ -261,28 +240,6 @@ class ParameterExtractionStage:
             await self.throw_error(f"Invalid input mode: {input_mode}")
             raise ValueError(f"Invalid input mode: {input_mode}")
         validated_input_mode = cast(InputMode, input_mode)
-
-        openai_api_key = self._get_from_settings_dialog_or_env(
-            params, "openAiApiKey", OPENAI_API_KEY
-        )
-
-        # If neither is provided, we throw an error later only if Claude is used.
-        anthropic_api_key = self._get_from_settings_dialog_or_env(
-            params, "anthropicApiKey", ANTHROPIC_API_KEY
-        )
-        gemini_api_key = self._get_from_settings_dialog_or_env(
-            params, "geminiApiKey", GEMINI_API_KEY
-        )
-
-        # Base URL for OpenAI API
-        openai_base_url: str | None = None
-        # Disable user-specified OpenAI Base URL in prod
-        if not IS_PROD:
-            openai_base_url = self._get_from_settings_dialog_or_env(
-                params, "openAiBaseURL", OPENAI_BASE_URL
-            )
-        if not openai_base_url:
-            print("Using official OpenAI URL")
 
         # Get the image generation flag from the request. Fall back to True if not provided.
         should_generate_images = bool(params.get("isImageGenerationEnabled", True))
@@ -326,10 +283,6 @@ class ParameterExtractionStage:
             stack=validated_stack,
             input_mode=validated_input_mode,
             should_generate_images=should_generate_images,
-            openai_api_key=openai_api_key,
-            anthropic_api_key=anthropic_api_key,
-            gemini_api_key=gemini_api_key,
-            openai_base_url=openai_base_url,
             generation_type=generation_type,
             prompt=prompt,
             history=history,
@@ -337,24 +290,9 @@ class ParameterExtractionStage:
             option_codes=option_codes,
         )
 
-    def _get_from_settings_dialog_or_env(
-        self, params: dict[str, Any], key: str, env_var: str | None
-    ) -> str | None:
-        """Get value from client settings or environment variable"""
-        value = params.get(key)
-        if value:
-            print(f"Using {key} from client-side settings dialog")
-            return value
-
-        if env_var:
-            print(f"Using {key} from environment variable")
-            return env_var
-
-        return None
-
 
 class ModelSelectionStage:
-    """Handles selection of variant models based on available API keys and generation type"""
+    """Handles selection of variant models based on backend configuration"""
 
     def __init__(self, throw_error: Callable[[str], Coroutine[Any, Any, None]]):
         self.throw_error = throw_error
@@ -363,85 +301,34 @@ class ModelSelectionStage:
         self,
         generation_type: Literal["create", "update"],
         input_mode: InputMode,
-        openai_api_key: str | None,
-        anthropic_api_key: str | None,
-        gemini_api_key: str | None = None,
     ) -> List[Llm]:
-        """Select appropriate models based on available API keys"""
+        """Select appropriate models based on backend config"""
         try:
-            num_variants = 2 if generation_type == "update" else NUM_VARIANTS
-            variant_models = self._get_variant_models(
-                generation_type,
-                input_mode,
-                num_variants,
-                openai_api_key,
-                anthropic_api_key,
-                gemini_api_key,
-            )
+            if input_mode == "video":
+                num_variants = NUM_VARIANTS_VIDEO
+            else:
+                num_variants = 2 if generation_type == "update" else NUM_VARIANTS
 
-            # Print the variant models (one per line)
+            from config import LLM_MODEL_NAME
+
+            model = Llm.from_string(LLM_MODEL_NAME)
+            if model == Llm.CUSTOM:
+                print(f"Warning: Using custom model: {LLM_MODEL_NAME}")
+
+            variant_models = [model] * num_variants
+
             print("Variant models:")
             for index, model in enumerate(variant_models):
                 print(f"Variant {index + 1}: {model.value}")
 
             return variant_models
-        except Exception:
+        except Exception as e:
+            from config import LLM_MODEL_NAME
+
             await self.throw_error(
-                "No OpenAI, Anthropic, or Gemini API key found. Please add the environment variable "
-                "OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY to backend/.env or in the settings dialog. "
-                "If you add it to .env, make sure to restart the backend server."
+                f"Invalid model configuration: {LLM_MODEL_NAME}. Please check LLM_MODEL_NAME in backend/.env"
             )
-            raise Exception("No API key")
-
-    def _get_variant_models(
-        self,
-        generation_type: Literal["create", "update"],
-        input_mode: InputMode,
-        num_variants: int,
-        openai_api_key: str | None,
-        anthropic_api_key: str | None,
-        gemini_api_key: str | None,
-    ) -> List[Llm]:
-        """Simple model cycling that scales with num_variants"""
-
-        # Video mode requires Gemini - 2 variants for comparison
-        if input_mode == "video":
-            if not gemini_api_key:
-                raise Exception(
-                    "Video mode requires a Gemini API key. "
-                    "Please add GEMINI_API_KEY to backend/.env or in the settings dialog"
-                )
-            return list(VIDEO_VARIANT_MODELS)
-
-        # Define models based on available API keys
-        if gemini_api_key and anthropic_api_key and openai_api_key:
-            if input_mode == "text" and generation_type == "create":
-                models = list(ALL_KEYS_MODELS_TEXT_CREATE)
-            elif generation_type == "update":
-                models = list(ALL_KEYS_MODELS_UPDATE)
-            else:
-                models = list(ALL_KEYS_MODELS_DEFAULT)
-        elif gemini_api_key and anthropic_api_key:
-            models = list(GEMINI_ANTHROPIC_MODELS)
-        elif gemini_api_key and openai_api_key:
-            models = list(GEMINI_OPENAI_MODELS)
-        elif openai_api_key and anthropic_api_key:
-            models = list(OPENAI_ANTHROPIC_MODELS)
-        elif gemini_api_key:
-            models = list(GEMINI_ONLY_MODELS)
-        elif anthropic_api_key:
-            models = list(ANTHROPIC_ONLY_MODELS)
-        elif openai_api_key:
-            models = list(OPENAI_ONLY_MODELS)
-        else:
-            raise Exception("No OpenAI or Anthropic key")
-
-        # Cycle through models: [A, B] with num=5 becomes [A, B, A, B, A]
-        selected_models: List[Llm] = []
-        for i in range(num_variants):
-            selected_models.append(models[i % len(models)])
-
-        return selected_models
+            raise Exception("Invalid model configuration")
 
 
 class PromptCreationStage:
@@ -495,20 +382,15 @@ class AgenticGenerationStage:
 
     def __init__(
         self,
-        send_message: Callable[[MessageType, str | None, int, Dict[str, Any] | None, str | None], Coroutine[Any, Any, None]],
-        openai_api_key: str | None,
-        openai_base_url: str | None,
-        anthropic_api_key: str | None,
-        gemini_api_key: str | None,
+        send_message: Callable[
+            [MessageType, str | None, int, Dict[str, Any] | None, str | None],
+            Coroutine[Any, Any, None],
+        ],
         should_generate_images: bool,
         file_state: Dict[str, str] | None,
         option_codes: List[str] | None,
     ):
         self.send_message = send_message
-        self.openai_api_key = openai_api_key
-        self.openai_base_url = openai_base_url
-        self.anthropic_api_key = anthropic_api_key
-        self.gemini_api_key = gemini_api_key
         self.should_generate_images = should_generate_images
         self.file_state = file_state
         self.option_codes = option_codes or []
@@ -521,9 +403,7 @@ class AgenticGenerationStage:
         tasks: List[asyncio.Task[str]] = []
         for index, model in enumerate(variant_models):
             tasks.append(
-                asyncio.create_task(
-                    self._run_variant(index, model, prompt_messages)
-                )
+                asyncio.create_task(self._run_variant(index, model, prompt_messages))
             )
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -544,6 +424,7 @@ class AgenticGenerationStage:
         prompt_messages: List[ChatCompletionMessageParam],
     ) -> str:
         try:
+
             async def send_runner_message(
                 type: str,
                 value: str | None,
@@ -562,10 +443,6 @@ class AgenticGenerationStage:
             runner = Agent(
                 send_message=send_runner_message,
                 variant_index=index,
-                openai_api_key=self.openai_api_key,
-                openai_base_url=self.openai_base_url,
-                anthropic_api_key=self.anthropic_api_key,
-                gemini_api_key=self.gemini_api_key,
                 should_generate_images=self.should_generate_images,
                 initial_file_state=self.file_state,
                 option_codes=self.option_codes,
@@ -586,11 +463,6 @@ class AgenticGenerationStage:
             error_message = (
                 "Incorrect OpenAI key. Please make sure your OpenAI API key is correct, "
                 "or create a new OpenAI API key on your OpenAI dashboard."
-                + (
-                    " Alternatively, you can purchase code generation credits directly on this website."
-                    if IS_PROD
-                    else ""
-                )
             )
             await self.send_message("variantError", error_message, index, None, None)
             return ""
@@ -601,24 +473,12 @@ class AgenticGenerationStage:
                 + ". Please make sure you have followed the instructions correctly to obtain "
                 "an OpenAI key with GPT vision access: "
                 "https://github.com/abi/screenshot-to-code/blob/main/Troubleshooting.md"
-                + (
-                    " Alternatively, you can purchase code generation credits directly on this website."
-                    if IS_PROD
-                    else ""
-                )
             )
             await self.send_message("variantError", error_message, index, None, None)
             return ""
         except openai.RateLimitError as e:
             print(f"[VARIANT {index + 1}] OpenAI Rate limit exceeded", e)
-            error_message = (
-                "OpenAI error - 'You exceeded your current quota, please check your plan and billing details.'"
-                + (
-                    " Alternatively, you can purchase code generation credits directly on this website."
-                    if IS_PROD
-                    else ""
-                )
-            )
+            error_message = "OpenAI error - 'You exceeded your current quota, please check your plan and billing details.'"
             await self.send_message("variantError", error_message, index, None, None)
             return ""
         except Exception as e:
@@ -724,9 +584,6 @@ class CodeGenerationMiddleware(Middleware):
             context.variant_models = await model_selector.select_models(
                 generation_type=context.extracted_params.generation_type,
                 input_mode=context.extracted_params.input_mode,
-                openai_api_key=context.extracted_params.openai_api_key,
-                anthropic_api_key=context.extracted_params.anthropic_api_key,
-                gemini_api_key=context.extracted_params.gemini_api_key,
             )
             if IS_DEBUG_ENABLED:
                 await context.send_message(
@@ -739,10 +596,6 @@ class CodeGenerationMiddleware(Middleware):
 
             generation_stage = AgenticGenerationStage(
                 send_message=context.send_message,
-                openai_api_key=context.extracted_params.openai_api_key,
-                openai_base_url=context.extracted_params.openai_base_url,
-                anthropic_api_key=context.extracted_params.anthropic_api_key,
-                gemini_api_key=context.extracted_params.gemini_api_key,
                 should_generate_images=context.extracted_params.should_generate_images,
                 file_state=context.extracted_params.file_state,
                 option_codes=context.extracted_params.option_codes,
@@ -783,9 +636,7 @@ class PostProcessingMiddleware(Middleware):
         self, context: PipelineContext, next_func: Callable[[], Awaitable[None]]
     ) -> None:
         post_processor = PostProcessingStage()
-        await post_processor.process_completions(
-            context.completions, context.websocket
-        )
+        await post_processor.process_completions(context.completions, context.websocket)
 
         await next_func()
 

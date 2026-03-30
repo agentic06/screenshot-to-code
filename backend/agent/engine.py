@@ -5,6 +5,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional
 from openai.types.chat import ChatCompletionMessageParam
 
 from codegen.utils import extract_html_content
+from config import LLM_API_KEY, LLM_BASE_URL
 from llm import Llm
 
 from agent.providers.base import ExecutedToolCall, ProviderSession, StreamEvent
@@ -27,20 +28,12 @@ class AgentEngine:
             Awaitable[None],
         ],
         variant_index: int,
-        openai_api_key: Optional[str],
-        openai_base_url: Optional[str],
-        anthropic_api_key: Optional[str],
-        gemini_api_key: Optional[str],
         should_generate_images: bool,
         initial_file_state: Optional[Dict[str, str]] = None,
         option_codes: Optional[List[str]] = None,
     ):
         self.send_message = send_message
         self.variant_index = variant_index
-        self.openai_api_key = openai_api_key
-        self.openai_base_url = openai_base_url
-        self.anthropic_api_key = anthropic_api_key
-        self.gemini_api_key = gemini_api_key
         self.should_generate_images = should_generate_images
 
         self.file_state = AgentFileState()
@@ -51,8 +44,8 @@ class AgentEngine:
         self.tool_runtime = AgentToolRuntime(
             file_state=self.file_state,
             should_generate_images=should_generate_images,
-            openai_api_key=openai_api_key,
-            openai_base_url=openai_base_url,
+            openai_api_key=LLM_API_KEY,
+            openai_base_url=LLM_BASE_URL,
             option_codes=option_codes,
         )
         self._tool_preview_lengths: Dict[str, int] = {}
@@ -76,7 +69,9 @@ class AgentEngine:
         if length > current:
             self._tool_preview_lengths[tool_event_id] = length
 
-    async def _stream_code_preview(self, tool_event_id: Optional[str], content: str) -> None:
+    async def _stream_code_preview(
+        self, tool_event_id: Optional[str], content: str
+    ) -> None:
         if not tool_event_id or not content:
             return
 
@@ -225,17 +220,15 @@ class AgentEngine:
 
         raise Exception("Agent exceeded max tool turns")
 
-    async def run(self, model: Llm, prompt_messages: List[ChatCompletionMessageParam]) -> str:
+    async def run(
+        self, model: Llm, prompt_messages: List[ChatCompletionMessageParam]
+    ) -> str:
         seed_file_state_from_messages(self.file_state, prompt_messages)
 
         session = create_provider_session(
             model=model,
             prompt_messages=prompt_messages,
             should_generate_images=self.should_generate_images,
-            openai_api_key=self.openai_api_key,
-            openai_base_url=self.openai_base_url,
-            anthropic_api_key=self.anthropic_api_key,
-            gemini_api_key=self.gemini_api_key,
         )
         try:
             return await self._run_with_session(session)
