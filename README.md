@@ -51,6 +51,7 @@ Run the backend (I use [uv](https://docs.astral.sh/uv/) for package management):
 
 ```bash
 cd backend
+# 配置 API Key（至少一个），在 backend/.env 中设置
 echo "OPENAI_API_KEY=sk-your-key" > .env
 echo "ANTHROPIC_API_KEY=your-key" >> .env
 echo "GEMINI_API_KEY=your-key" >> .env
