@@ -1,10 +1,10 @@
 # Run the type checker
 
-poetry run pyright
+uv run pyright
 
 # Run tests
 
-poetry run pytest
+uv run pytest
 
 ## Prompt Summary
 

@@ -47,17 +47,15 @@ Keys needed:
 
 If you'd like to run the app with Ollama open source models (not recommended due to poor quality results), [follow this comment](https://github.com/abi/screenshot-to-code/issues/354#issuecomment-2435479853).
 
-Run the backend (I use Poetry for package management - `pip install --upgrade poetry` if you don't have it):
+Run the backend (I use [uv](https://docs.astral.sh/uv/) for package management):
 
 ```bash
 cd backend
 echo "OPENAI_API_KEY=sk-your-key" > .env
 echo "ANTHROPIC_API_KEY=your-key" >> .env
 echo "GEMINI_API_KEY=your-key" >> .env
-poetry install
-poetry env activate
-# run the printed command, e.g. source /path/to/venv/bin/activate
-poetry run uvicorn main:app --reload --port 7001
+uv sync --all-groups
+uv run uvicorn main:app --reload --port 7001
 ```
 
 You can also set up the keys using the settings dialog on the front-end (click the gear icon after loading the frontend).

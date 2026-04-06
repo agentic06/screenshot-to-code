@@ -8,11 +8,11 @@ The backend uses pytest for testing. All tests are located in the `backend/tests
 
 ### Prerequisites
 
-Make sure you have Poetry installed and have installed all dependencies:
+Make sure you have [uv](https://docs.astral.sh/uv/) installed and have installed all dependencies:
 
 ```bash
 cd backend
-poetry install
+uv sync --all-groups
 ```
 
 ### Running Tests
@@ -20,38 +20,38 @@ poetry install
 #### Run all tests
 ```bash
 cd backend
-poetry run pytest
+uv run pytest
 ```
 
 #### Run tests with verbose output
 ```bash
-poetry run pytest -vv
+uv run pytest -vv
 ```
 
 #### Run a specific test file
 ```bash
-poetry run pytest tests/test_screenshot.py
+uv run pytest tests/test_screenshot.py
 ```
 
 #### Run a specific test class
 ```bash
-poetry run pytest tests/test_screenshot.py::TestNormalizeUrl
+uv run pytest tests/test_screenshot.py::TestNormalizeUrl
 ```
 
 #### Run a specific test method
 ```bash
-poetry run pytest tests/test_screenshot.py::TestNormalizeUrl::test_url_without_protocol
+uv run pytest tests/test_screenshot.py::TestNormalizeUrl::test_url_without_protocol
 ```
 
 #### Run tests with coverage report
 ```bash
-poetry run pytest --cov=routes
+uv run pytest --cov=routes
 ```
 
 #### Run tests in parallel (requires pytest-xdist)
 ```bash
-poetry install --with dev pytest-xdist  # Install if not already installed
-poetry run pytest -n auto
+uv add --dev pytest-xdist  # Install if not already installed
+uv run pytest -n auto
 ```
 
 ### Test Configuration

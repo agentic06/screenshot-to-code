@@ -1,21 +1,11 @@
 FROM python:3.12.3-slim-bullseye
 
-ENV POETRY_VERSION 1.8.0
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install system dependencies
-RUN pip install "poetry==$POETRY_VERSION"
-
-# Set work directory
 WORKDIR /app
 
-# Copy only requirements to cache them in docker layer
-COPY poetry.lock pyproject.toml /app/
+COPY uv.lock pyproject.toml /app/
 
-# Disable the creation of virtual environments
-RUN poetry config virtualenvs.create false
+RUN uv sync --frozen --no-dev --no-install-project
 
-# Install dependencies
-RUN poetry install
-
-# Copy the current directory contents into the container at /app
 COPY ./ /app/

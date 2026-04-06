@@ -2,15 +2,14 @@
 
 Python environment:
 
-- Always use the backend Poetry virtualenv (`backend-py3.10`) for Python commands.
-- Preferred invocation: `cd backend && poetry run <command>`.
-- If you need to activate directly, use Poetry to discover it in the current environment:
-  - `cd backend && poetry env activate` (then run the `source .../bin/activate` command it prints)
+- Always use `uv` for Python package management in the backend.
+- Preferred invocation: `cd backend && uv run <command>`.
+- Install dependencies: `cd backend && uv sync --all-groups`.
 
 Testing policy:
 
-- Always run backend tests after every code change: `cd backend && poetry run pytest`.
-- Always run type checking after every code change: `cd backend && poetry run pyright`.
+- Always run backend tests after every code change: `cd backend && uv run pytest`.
+- Always run type checking after every code change: `cd backend && uv run pyright`.
 - Type checking policy: no new warnings in changed files (`pyright`).
 
 ## Frontend
