@@ -14,7 +14,9 @@ Testing policy:
 
 ## Frontend
 
-- Frontend: `cd frontend && yarn lint`
+- Always use `pnpm` for frontend package management.
+- Install dependencies: `cd frontend && pnpm install`.
+- Frontend: `cd frontend && pnpm lint`
 
 If changes touch both, run both sets.
 
