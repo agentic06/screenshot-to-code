@@ -51,10 +51,10 @@ Run the backend (I use [uv](https://docs.astral.sh/uv/) for package management):
 
 ```bash
 cd backend
-# 配置 API Key（至少一个），在 backend/.env 中设置
-echo "OPENAI_API_KEY=sk-your-key" > .env
-echo "ANTHROPIC_API_KEY=your-key" >> .env
-echo "GEMINI_API_KEY=your-key" >> .env
+# 配置 LLM（在 backend/.env 中设置），我们以配置火山云的豆包2.0为例，这里配置具有视觉理解的模型都可以
+echo "LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3" > .env
+echo "LLM_API_KEY=your-api-key" >> .env
+echo "LLM_MODEL_NAME=doubao-seed-2-0-pro-260215" >> .env
 uv sync --all-groups
 uv run uvicorn main:app --reload --port 7001
 ```
